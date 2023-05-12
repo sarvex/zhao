@@ -13,8 +13,8 @@ def _raise_err(format, *args) :
     raise ValueError(format % args)
 
 
-def _load_yaml(yaml_file) :
-    print(u'load: ' + yaml_file)
+def _load_yaml(yaml_file):
+    print(f'load: {yaml_file}')
     with open(yaml_file, u'r') as f :
         return yaml.load(f.read())
 
@@ -25,13 +25,13 @@ class Node :
     keys = []
 
     @classmethod
-    def init(cls) :
+    def init(cls):
         Node.all = {}
         Node.keys = []
 
-        for node_type in [u'person', u'company'] :
-            for node_id in os.listdir(u'../data/' + node_type) :
-                yaml_file = u'../data/%s/%s/brief.yaml' % (node_type, node_id)
+        for node_type in [u'person', u'company']:
+            for node_id in os.listdir(f'../data/{node_type}'):
+                yaml_file = f'../data/{node_type}/{node_id}/brief.yaml'
                 node = Node(_load_yaml(yaml_file), node_id, node_type)
                 if node_id in Node.all :
                     _raise_err(u'Node id conflict: "%s"!', node_id)
@@ -63,10 +63,10 @@ class Relation :
     keys = []
 
     @classmethod
-    def init(cls) :
-        for family_id in os.listdir(u'../data/family/') :
+    def init(cls):
+        for family_id in os.listdir(u'../data/family/'):
             family_id = family_id.replace(u'.yaml', u'')
-            yaml_file = u'../data/family/%s.yaml' % (family_id,)
+            yaml_file = f'../data/family/{family_id}.yaml'
             if family_id not in Node.all :
                 _raise_err(u'Invalid family name: "%s"!', family_id)
 
@@ -78,11 +78,11 @@ class Relation :
         print(u'Relation number: %d' % len(Relation.all))
 
 
-    def __init__(self, lst) :
+    def __init__(self, lst):
         self.node_from = lst[0]
         self.node_to = lst[1]
         self.desc = lst[2]
-        self.name = self.node_from + u'->' + self.node_to
+        self.name = f'{self.node_from}->{self.node_to}'
 
         if self.name in Relation.all :
             _raise_err(u'Relation name conflict: "%s"!', self.name)
@@ -98,10 +98,10 @@ class Family :
     keys = []
 
     @classmethod
-    def init(cls) :
-        for family_id in os.listdir(u'../data/family/') :
+    def init(cls):
+        for family_id in os.listdir(u'../data/family/'):
             family_id = family_id.replace(u'.yaml', u'')
-            yaml_file = u'../data/family/%s.yaml' % (family_id,)
+            yaml_file = f'../data/family/{family_id}.yaml'
             if family_id not in Node.all :
                 _raise_err(u'Invalid family name: "%s"!', family_id)
 
@@ -178,40 +178,42 @@ digraph %s
         return template % (self._name, self._name, output.getvalue())
 
 
-    def _node_color(self, node) :
-        if u'company' == node.type :
+    def _node_color(self, node):
+        if node.type == u'company':
             return u'green'
-        else :
-            return (u'blue' if u'M'==node.sex else u'red')
+        else:
+            return u'blue' if node.sex == u'M' else u'red'
 
-    def _other_names(self, node) :
+    def _other_names(self, node):
         other_names = ''
-        if u'person'==node.type and node.other_names :
-            other_names = u', '.join([u'%s:%s' % (k,v) for k,v in node.other_names.items()])
-        elif u'company'==node.type and node.full_name :
+        if node.type == u'person' and node.other_names:
+            other_names = u', '.join([f'{k}:{v}' for k,v in node.other_names.items()])
+        elif node.type == u'company' and node.full_name:
             other_names = node.full_name
-        return u'<tr><td>(%s)</td></tr>' % (other_names,) if other_names else ''
+        return f'<tr><td>({other_names})</td></tr>' if other_names else ''
 
-    def _dot_node(self, node_id) :
+    def _dot_node(self, node_id):
         node = Node.all[node_id]
         template = u'\t%s [shape="%s", color="%s", ' \
-                    u'label=<<table border="0" cellborder="0">' \
-                    u'<tr><td>%s%s</td></tr>' \
-                    u'%s' \
-                    u'<tr><td>%s</td></tr>' \
-                    u'<tr><td>%s</td></tr></table>>];\n'
+                        u'label=<<table border="0" cellborder="0">' \
+                        u'<tr><td>%s%s</td></tr>' \
+                        u'%s' \
+                        u'<tr><td>%s</td></tr>' \
+                        u'<tr><td>%s</td></tr></table>>];\n'
 
-        portrait = u'../data/person/%s/portrait.png' % (node_id,)
-        portrait = u'<img src="%s"/>' % (portrait,) if os.path.exists(portrait) else ''
+        portrait = f'../data/person/{node_id}/portrait.png'
+        portrait = f'<img src="{portrait}"/>' if os.path.exists(portrait) else ''
 
-        return template % (node.id,
-                           u'box' if u'person'==node.type else u'ellipse',
-                           self._node_color(node),
-                           node.name,
-                           (u'' if node.birth==u'N/A' else u' [%s]'%node.birth),
-                           self._other_names(node),
-                           portrait,
-                           node.desc.replace(u'\n', u'<br/>'))
+        return template % (
+            node.id,
+            u'box' if node.type == u'person' else u'ellipse',
+            self._node_color(node),
+            node.name,
+            u'' if node.birth == u'N/A' else f' [{node.birth}]',
+            self._other_names(node),
+            portrait,
+            node.desc.replace(u'\n', u'<br/>'),
+        )
 
 
     def _dot_relation(self, name) :
@@ -268,27 +270,25 @@ class Builder :
         print(cmd)
         return os.system(cmd.encode(u'utf-8'))
 
-    def do(self, file_type) :
+    def do(self, file_type):
         os.chdir(u'../download/')
         self._mkdir(u'dot')
         self._mkdir(file_type)
-        n = 0
-        for graph in _load_yaml(u'../data/graph.yaml') :
-            n += 1
+        for n, graph in enumerate(_load_yaml(u'../data/graph.yaml'), start=1):
             name = u'%02d-%s' % (n, graph[u'name'])
-            dot_file = u'./dot/%s.dot' % (name,)
-            output_file = u'./%s/%s.%s' % (file_type, name, file_type)
+            dot_file = f'./dot/{name}.dot'
+            output_file = f'./{file_type}/{name}.{file_type}'
 
             with open(dot_file, u'wb') as f :
                 f.write(Graph(graph).dump().encode(u'utf-8'))
 
-            cmd = u'dot "%s" -T%s -o"%s"' % (dot_file, file_type, output_file)
+            cmd = f'dot "{dot_file}" -T{file_type} -o"{output_file}"'
             if self._exec(cmd) != 0 :
                 _raise_err(u'Make "%s" failed!', dot_file)
         return 0
 
 
-if '__main__' == __name__ :
+if __name__ == '__main__':
     try :
         if len(sys.argv) != 2 :
             print(u'''Usage:\n%s file_type
